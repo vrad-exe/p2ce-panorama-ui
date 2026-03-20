@@ -92,12 +92,28 @@ class LoadingScreenController {
 				}
 			};
 
+
 			let path: string;
 			this.beBlankIfInvalid = isSingleWsCampaign(c);
 			if (this.beBlankIfInvalid) {
 				path = useTransitScreen ? 'transition_screen.png' : 'loading_screen.png';
 			} else {
-				path = meta.get(useTransitScreen ? CampaignMeta.TRANSITION_SCREEN : CampaignMeta.LOADING_SCREEN) ?? '';
+				const aspect = $.GetContextPanel().contentwidth / $.GetContextPanel().contentheight;
+				const pathNonWide = meta.get(useTransitScreen ? CampaignMeta.TRANSITION_SCREEN_NONWIDE : CampaignMeta.LOADING_SCREEN_NONWIDE) ?? '';
+				const pathUltraWide = meta.get(useTransitScreen ? CampaignMeta.TRANSITION_SCREEN_ULTRAWIDE : CampaignMeta.LOADING_SCREEN_ULTRAWIDE) ?? '';
+
+				$.Msg(`Aspect Ratio: ${aspect}`);
+				// Less than just below 16:10 is considered non-widescreen - C++ code does this (see vgui_int.cpp in Swarm SDK)
+				if (aspect < 1.59 && pathNonWide && pathNonWide.length > 0) {
+					path = pathNonWide
+					$.Msg("Using 4:3 asset");
+				} else if (aspect > 2.0 && pathUltraWide && pathUltraWide.length > 0) {
+					path = pathUltraWide
+					$.Msg("Using ultrawide asset");
+				} else {
+					path = meta.get(useTransitScreen ? CampaignMeta.TRANSITION_SCREEN : CampaignMeta.LOADING_SCREEN) ?? '';
+					$.Msg("Using widescreen asset");
+				}
 			}
 
 			$.Msg(`Image asset path: ${path}`);
@@ -109,6 +125,16 @@ class LoadingScreenController {
 				}
 				setImg(this.bgImage1, join + '_1.' + split[split.length - 1]);
 				setImg(this.bgImage2, join + '_2.' + split[split.length - 1]);
+
+				// Set scale type
+				const scaling = meta.get(useTransitScreen ? CampaignMeta.TRANSITION_SCREEN_SCALING : CampaignMeta.LOADING_SCREEN_SCALING) as ImageScalingMode;
+				$.Msg(`Image scaling mode: ${scaling}`);
+				if (scaling && scaling.length > 0) {
+					this.bgImage1.SetScaling(scaling);
+				} else {
+					// Default to cover mode, probably makes the most sense
+					this.bgImage1.SetScaling(ImageScalingMode.STRETCH_TO_COVER_PRESERVE_ASPECT);
+				}
 
 				$.Schedule(0.125, this.updateLoadingScreenInfoRepeater.bind(this));
 			} else {
